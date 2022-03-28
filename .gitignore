@@ -1,0 +1,4 @@
+/bazel-bin
+/bazel-gerrit-github-codeowners
+/bazel-out
+/bazel-testlogs
