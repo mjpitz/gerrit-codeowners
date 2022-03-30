@@ -38,7 +38,7 @@ limitations under the License.
                 <configuration>
                     <archive>
                         <manifestEntries>
-                            <Gerrit-PluginName>cookbook</Gerrit-PluginName>
+                            <Gerrit-PluginName>codeowners</Gerrit-PluginName>
                             <Gerrit-Module>com.mjpitz.gerrit.plugins.codeowners.Module</Gerrit-Module>
 
                             <!--
@@ -46,7 +46,7 @@ limitations under the License.
                             <Implementation-URL>https://gerrit-review.googlesource.com/#/admin/projects/plugins/examples</Implementation-URL>
                             -->
 
-                            <Implementation-Title>GitHub CODEOWNERS for Gerrit</Implementation-Title>
+                            <Implementation-Title>CODEOWNERS for Gerrit</Implementation-Title>
                             <Implementation-Version>${project.version}</Implementation-Version>
 
                             <Gerrit-ApiType>${Gerrit-ApiType}</Gerrit-ApiType>
