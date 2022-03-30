@@ -1,23 +1,20 @@
 version: "3.8"
 
-volumes:
-  cache-volume: {}
-  db-volume: {}
-  etc-volume: {}
-  index-volume: {}
-  git-volume: {}
-
 services:
   gerrit:
-    image: gerritcodereview/gerrit
+    image: img.dev.storj.io/gerrit:3.5.0.1-ubuntu20
+    build:
+      context: .
     environment:
       CANONICAL_WEB_URL: http://localhost:6060
+      GITHUB_LOGIN: ${GITHUB_LOGIN:-}
+      GITHUB_OAUTH: ${GITHUB_OAUTH:-}
     volumes:
-      - db-volume:/var/gerrit/db
-      - etc-volume:/var/gerrit/etc
-      - cache-volume:/var/gerrit/cache
-      - index-volume:/var/gerrit/index
-      - git-volume:/var/gerrit/git
+      - ./docker/gerrit/db:/var/gerrit/db
+      - ./docker/gerrit/etc:/var/gerrit/etc
+      - ./docker/gerrit/cache:/var/gerrit/cache
+      - ./docker/gerrit/index:/var/gerrit/index
+      - ./docker/gerrit/git:/var/gerrit/git
     ports:
       - "29418:29418"
       - "6060:8080"
