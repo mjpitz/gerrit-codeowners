@@ -1,8 +1,10 @@
-# GitHub CODEOWNERS for Gerrit
+# CODEOWNERS for Gerrit
 
 ## Features
 
-- [ ] Auto-assign gerrit patches and pull requests based on CODEOWNERS.
+- [x] Auto-assign gerrit patches and pull requests based on CODEOWNERS.
+- [x] Support for GitHub
+- [ ] Support for GitLab?
 
 ## License
 
