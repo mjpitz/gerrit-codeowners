@@ -21,10 +21,11 @@ limitations under the License.
 
     <groupId>com.mjpitz.gerrit.plugins</groupId>
     <artifactId>codeowners</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>${revision}</version>
     <packaging>jar</packaging>
 
     <properties>
+        <revision>1.0-SNAPSHOT</revision>
         <Gerrit-ApiType>plugin</Gerrit-ApiType>
         <Gerrit-ApiVersion>3.5.0.1</Gerrit-ApiVersion>
     </properties>
