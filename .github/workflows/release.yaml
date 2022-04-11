@@ -28,7 +28,7 @@ jobs:
 
       - name: Build
         run: |
-          export VERSION="\"${GITHUB_REF##*/v}\""
+          export VERSION="${GITHUB_REF##*/v}"
           mvn -Drevision=${VERSION} clean package
           sha256sum target/codeowners-${VERSION}.jar > target/codeowners-checksums.txt
 
