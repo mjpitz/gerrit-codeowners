@@ -7,29 +7,20 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Config {
-    public static class Rule {
-        public final FastIgnoreRule pattern;
-        public final Set<String> owners;
 
-        public Rule(final FastIgnoreRule pattern, final Collection<String> owners) {
-            this.pattern = pattern;
-            this.owners = new HashSet<>(owners);
-        }
-    }
-
+    private static final Splitter SPLITTER = Splitter.on(' ');
     public final List<Rule> rules;
+    public final int reviewerCount;
 
-    public Config(final List<Rule> rules) {
+    public Config(final List<Rule> rules, int assigneNo) {
         this.rules = rules;
+        this.reviewerCount = assigneNo;
     }
 
     public Set<String> ownersFor(final String path) {
@@ -45,24 +36,30 @@ public class Config {
         return owners;
     }
 
-    private static final Splitter SPLITTER = Splitter.on(' ');
 
     public static Config open(final File file) throws IOException {
         return parse(new BufferedReader(new FileReader(file)).lines());
     }
 
     public static Config parse(final Stream<String> stream) {
-        final List<Rule> rules = stream
+        final List<Rule> rules = new ArrayList<>();
+        AtomicInteger assigneeNo = new AtomicInteger(2);
+        stream
                 .filter(Objects::nonNull)
-                .map((line) -> {
+                .forEach((line) -> {
                     final int commentStart = line.lastIndexOf("#");
                     if (commentStart == 0 || (commentStart > 0 && line.charAt(commentStart - 1) != '\\')) {
                         // comment, and comment unescaped
+
+                        String comment = line.substring(commentStart);
+                        if (comment.startsWith("#gerrit-codeowners.reviewer-count:")) {
+                            assigneeNo.set(Integer.parseInt(comment.split(" ")[1]));
+                        }
                         line = line.substring(0, commentStart);
                     }
 
                     if ("".equals(line)) {
-                        return null;
+                        return;
                     }
 
                     final List<String> parts = SPLITTER
@@ -79,14 +76,23 @@ public class Config {
                             })
                             .collect(Collectors.toList());
 
-                    return new Config.Rule(
+                    rules.add(new Config.Rule(
                             new FastIgnoreRule(parts.get(0)),
                             parts.subList(1, parts.size())
-                    );
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                    ));
+                });
 
-        return new Config(rules);
+        return new Config(rules, assigneeNo.get());
     }
+
+    public static class Rule {
+        public final FastIgnoreRule pattern;
+        public final Set<String> owners;
+
+        public Rule(final FastIgnoreRule pattern, final Collection<String> owners) {
+            this.pattern = pattern;
+            this.owners = new HashSet<>(owners);
+        }
+    }
+
 }

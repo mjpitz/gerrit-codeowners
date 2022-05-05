@@ -52,3 +52,6 @@ apps/ @octocat
 # subdirectory, as its owners are left empty.
 /apps/ @octocat
 /apps/github
+
+#following is a specific configuration for gerrit-codeowners
+#gerrit-codeowners.reviewer-count: 3

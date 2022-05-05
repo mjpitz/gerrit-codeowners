@@ -18,6 +18,7 @@ public class ConfigTest {
         ));
 
         assertEquals(11, config.rules.size());
+        assertEquals(3, config.reviewerCount);
 
         assertEquals(0, config.ownersFor("/apps/github").size());
         assertEquals(Sets.newHashSet("@octocat"), config.ownersFor("/apps/main.js"));

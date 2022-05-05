@@ -44,12 +44,10 @@ import java.util.stream.Collectors;
 @Singleton
 public class ReviewAssigner implements WorkInProgressStateChangedListener {
     private static final Logger log = Logger.getLogger(ReviewAssigner.class);
-    private static final int defaultReviewerCount = 3;
 
     private final GitHub github;
     private final GerritApi gerrit;
     private final GitRepositoryManager git;
-    private final int reviewerCount = defaultReviewerCount;
 
     // use a global cache to reduce calls to the gerrit APIs
     private final ConcurrentMap<String, String> cache = new ConcurrentHashMap<>();
@@ -157,7 +155,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
         return possibleReviewers;
     }
 
-    private HashRing fromGit(HashRing possibleReviewers, final Repository repo, final RevisionInfo revision) throws GitAPIException, NoSuchAlgorithmException {
+    private HashRing fromGit(HashRing possibleReviewers, final Repository repo, final RevisionInfo revision, int reviewerCount) throws GitAPIException, NoSuchAlgorithmException {
         final Git git = Git.wrap(repo);
         final LogCommand logCommand = git.log();
 
@@ -167,7 +165,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
 
         final Iterator<RevCommit> log = logCommand.call().iterator();
 
-        while (possibleReviewers.size() < this.reviewerCount && log.hasNext()) {
+        while (possibleReviewers.size() < reviewerCount && log.hasNext()) {
             final RevCommit commit = log.next();
             final PersonIdent author = commit.getAuthorIdent();
 
@@ -180,10 +178,10 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
         return possibleReviewers;
     }
 
-    private void assign(final ChangeInfo change, final RevisionInfo revision, final int reviewerCount) throws IOException, GitAPIException, NoSuchAlgorithmException, RestApiException {
+    private void assign(final ChangeInfo change, final RevisionInfo revision) throws IOException, GitAPIException, NoSuchAlgorithmException, RestApiException {
         // use hash-ring to track possible reviewers
         HashRing possibleReviewers = new HashRing();
-
+        int missingReviewers = 0;
         try (final Repository repo = git.openRepository(Project.nameKey(change.project))) {
             // attempt to load the code owners file
 
@@ -192,16 +190,21 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
                 possibleReviewers = fromCodeOwners(config, revision);
             }
 
-            // if insufficient after populating from the owners file, attempt to augment with git history
+            missingReviewers = config.reviewerCount - change.reviewers.size();
 
-            if (possibleReviewers.size() < reviewerCount) {
-                possibleReviewers = fromGit(possibleReviewers, repo, revision);
+            if (missingReviewers <= 0) {
+                // we have enough reviewers.
+                return;
+            }
+            // if insufficient after populating from the owners file, attempt to augment with git history
+            if (possibleReviewers.size() < missingReviewers) {
+                possibleReviewers = fromGit(possibleReviewers, repo, revision, missingReviewers);
             }
         }
 
         // assign reviewers from the stable hash-ring
 
-        final int numberToAssign = Math.min(possibleReviewers.size(), reviewerCount);
+        final int numberToAssign = Math.min(possibleReviewers.size(), missingReviewers);
         log.info("assigning " + numberToAssign + " reviewers to " + change.id);
 
         final Set<String> reviewers = possibleReviewers.getNodes(change.id, numberToAssign);
@@ -228,17 +231,16 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
 
         final boolean workInProgress = change.workInProgress != null && change.workInProgress;
         final boolean isPrivate = change.isPrivate != null && change.isPrivate;
-        final int reviewersToAssign = this.reviewerCount - change.reviewers.size();
 
         try {
             if (workInProgress || isPrivate) {
                 // if a review is toggled from active => work in progress / private, remove auto-assigned reviewers.
                 log.info("removing reviewers from " + change.id);
                 unassign(change, revision);
-            } else if (reviewersToAssign > 0) {
+            } else {
                 // if a review is toggled from work in progress / private => active, add auto-assigned reviewers.
                 log.info("assigning reviewers to " + change.id);
-                assign(change, revision, reviewersToAssign);
+                assign(change, revision);
             }
         } catch (final IOException | GitAPIException | NoSuchAlgorithmException | RestApiException e) {
             log.error("failed to update reviewers on " + change.id, e);
