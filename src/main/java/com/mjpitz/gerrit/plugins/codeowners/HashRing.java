@@ -3,32 +3,30 @@ package com.mjpitz.gerrit.plugins.codeowners;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.function.Function;
 
 public class HashRing {
-    @FunctionalInterface
-    public interface Hasher {
-        String hash(String val) throws NoSuchAlgorithmException;
+
+    public interface Hasher extends Function<String, String> {
     }
 
     public static Hasher MD5 = val -> {
-        final MessageDigest md = MessageDigest.getInstance("MD5");
-        final byte[] digest = md.digest(val.getBytes());
-        final BigInteger no = new BigInteger(1, digest);
+        try {
+            final MessageDigest md = MessageDigest.getInstance("MD5");
+            final byte[] digest = md.digest(val.getBytes());
+            final BigInteger no = new BigInteger(1, digest);
 
-        // Convert message digest into hex value
-        StringBuilder hashtext = new StringBuilder(no.toString(16));
-        while (hashtext.length() < 32) {
-            hashtext.insert(0, "0");
+            // Convert message digest into hex value
+            StringBuilder hashtext = new StringBuilder(no.toString(16));
+            while (hashtext.length() < 32) {
+                hashtext.insert(0, "0");
+            }
+
+            return hashtext.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new RuntimeException(ex);
         }
-
-        return hashtext.toString();
     };
 
     private final Hasher hasher;
@@ -43,13 +41,21 @@ public class HashRing {
         this(hasher, new LinkedHashMap<>());
     }
 
-    private HashRing(
-            final Hasher hasher,
-            final LinkedHashMap<String, Integer> weights
-    ) {
+
+    private HashRing(final Hasher hasher, final LinkedHashMap<String, Integer> weights) {
         this.hasher = hasher;
         this.weights = weights;
         this.ring = new TreeMap<>();
+    }
+
+    public static HashRing fromElements(final Hasher hasher, Collection<String> elements) throws NoSuchAlgorithmException {
+        LinkedHashMap<String, Integer> weights = new LinkedHashMap<>();
+        for (String element : elements) {
+            weights.put(element, 1);
+        }
+        HashRing hashRing = new HashRing(hasher, weights);
+        hashRing.make();
+        return hashRing;
     }
 
     public int size() {
@@ -62,7 +68,7 @@ public class HashRing {
             final int weight = entry.getValue();
 
             for (int i = 0; i < weight; i++) {
-                final String key = hasher.hash(node + "-" + i);
+                final String key = hasher.apply(node + "-" + i);
                 ring.put(key, node);
             }
         }
@@ -102,24 +108,29 @@ public class HashRing {
         return "";
     }
 
-    public Set<String> getNodes(final String key, final int size) throws NoSuchAlgorithmException {
+    public Set<String> getNodes(final String key, final int size) {
+
         final int l = size();
-        if (l == 0) {
-            return new HashSet<>();
-        } else if (size > l) {
+        if (l == 0 || size == 0) {
             return new HashSet<>();
         }
 
         final Set<String> nodes = new LinkedHashSet<>();
-        final String needle = hasher.hash(key);
+        final String needle = hasher.apply(key);
 
         Iterator<Map.Entry<String, String>> iterator = ring.tailMap(needle, false).entrySet().iterator();
-        while (nodes.size() < size && iterator.hasNext()) {
+        while (iterator.hasNext()) {
             nodes.add(iterator.next().getValue());
+            if (nodes.size() == size) {
+                return nodes;
+            }
+        }
 
-            if (!iterator.hasNext()) {
-                // wrap around when we exhaust the end of the map
-                iterator = ring.headMap(needle, true).entrySet().iterator();
+        iterator = ring.headMap(needle, false).entrySet().iterator();
+        while (iterator.hasNext()) {
+            nodes.add(iterator.next().getValue());
+            if (nodes.size() == size) {
+                return nodes;
             }
         }
 

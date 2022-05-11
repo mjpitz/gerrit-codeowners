@@ -3,10 +3,7 @@ package com.mjpitz.codeowners;
 import com.google.common.base.Splitter;
 import org.eclipse.jgit.ignore.FastIgnoreRule;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -29,16 +26,21 @@ public class Config {
         for (final Rule rule : this.rules) {
             // code reviews typically do not deal with directories...
             if (rule.pattern.isMatch(path, false)) {
-                owners = rule.owners;
+                owners.addAll(rule.owners);
             }
         }
 
         return owners;
     }
 
-
     public static Config open(final File file) throws IOException {
-        return parse(new BufferedReader(new FileReader(file)).lines());
+        try (FileReader reader = new FileReader(file)) {
+            return parse(new BufferedReader(reader).lines());
+        }
+    }
+
+    public static Config open(final Reader reader) throws IOException {
+        return parse(new BufferedReader(reader).lines());
     }
 
     public static Config parse(final Stream<String> stream) {
@@ -92,6 +94,14 @@ public class Config {
         public Rule(final FastIgnoreRule pattern, final Collection<String> owners) {
             this.pattern = pattern;
             this.owners = new HashSet<>(owners);
+        }
+
+        @Override
+        public String toString() {
+            return "Rule{" +
+                    "pattern=" + pattern +
+                    ", owners=" + owners +
+                    '}';
         }
     }
 
