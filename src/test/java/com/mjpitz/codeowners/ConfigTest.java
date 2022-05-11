@@ -20,18 +20,18 @@ public class ConfigTest {
         assertEquals(11, config.rules.size());
         assertEquals(3, config.reviewerCount);
 
-        assertEquals(0, config.ownersFor("/apps/github").size());
-        assertEquals(Sets.newHashSet("@octocat"), config.ownersFor("/apps/main.js"));
-        assertEquals(Sets.newHashSet("@octocat"), config.ownersFor("/apps/main.go"));
-        assertEquals(Sets.newHashSet("@octocat", "@doctocat"), config.ownersFor("/scripts/deploy.sh"));
-        assertEquals(Sets.newHashSet("@doctocat"), config.ownersFor("/docs/README.md"));
-        assertEquals(Sets.newHashSet("@octocat"), config.ownersFor("/internal/apps/main.js"));
-        assertEquals(Sets.newHashSet("@octocat"), config.ownersFor("/internal/apps/main.go"));
-        //assertEquals(Sets.newHashSet("docs@example.com"), config.ownersFor("/internal/docs/README.md")); // hmmm....
-        assertEquals(Sets.newHashSet("@doctocat"), config.ownersFor("/build/logs/out.json"));
-        assertEquals(Sets.newHashSet("@octo-org/octocats"), config.ownersFor("/internal/lib/lib.txt"));
-        assertEquals(Sets.newHashSet("docs@example.com"), config.ownersFor("/internal/lib/lib.go"));
-        assertEquals(Sets.newHashSet("@js-owner"), config.ownersFor("/internal/lib/index.js"));
-        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2"), config.ownersFor("Jenkinsfile"));
+        assertEquals(3, config.ownersFor("/apps/github").size());
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@js-owner", "@octocat"), config.ownersFor("/apps/main.js"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "docs@example.com", "@octocat"), config.ownersFor("/apps/main.go"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@octocat", "@doctocat"), config.ownersFor("/scripts/deploy.sh"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@doctocat", "docs@example.com"), config.ownersFor("/docs/README.md"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@octocat", "@js-owner"), config.ownersFor("/internal/apps/main.js"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@octocat", "docs@example.com"), config.ownersFor("/internal/apps/main.go"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2"), config.ownersFor("/internal/docs/README.md"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@doctocat"), config.ownersFor("/build/logs/out.json"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@octo-org/octocats"), config.ownersFor("/internal/lib/lib.txt"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "docs@example.com"), config.ownersFor("/internal/lib/lib.go"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@js-owner"), config.ownersFor("/internal/lib/index.js"));
+        assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@global-owner1", "@global-owner2"), config.ownersFor("Jenkinsfile"));
     }
 }

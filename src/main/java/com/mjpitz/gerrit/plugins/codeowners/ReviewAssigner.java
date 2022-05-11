@@ -4,11 +4,15 @@ import com.google.common.collect.Lists;
 import com.google.gerrit.entities.Project;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ReviewInput;
+import com.google.gerrit.extensions.api.changes.ReviewResult;
 import com.google.gerrit.extensions.api.changes.ReviewerInput;
 import com.google.gerrit.extensions.client.ReviewerState;
 import com.google.gerrit.extensions.common.AccountInfo;
 import com.google.gerrit.extensions.common.ChangeInfo;
 import com.google.gerrit.extensions.common.RevisionInfo;
+import com.google.gerrit.extensions.events.CommentAddedListener;
+import com.google.gerrit.extensions.events.GitReferenceUpdatedListener;
+import com.google.gerrit.extensions.events.RevisionCreatedListener;
 import com.google.gerrit.extensions.events.WorkInProgressStateChangedListener;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.server.git.GitRepositoryManager;
@@ -30,19 +34,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.NoSuchAlgorithmException;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Singleton
-public class ReviewAssigner implements WorkInProgressStateChangedListener {
+public class ReviewAssigner implements WorkInProgressStateChangedListener, CommentAddedListener, RevisionCreatedListener {
     private static final Logger log = Logger.getLogger(ReviewAssigner.class);
 
     private final GitHub github;
@@ -50,29 +49,22 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
     private final GitRepositoryManager git;
 
     // use a global cache to reduce calls to the gerrit APIs
-    private final ConcurrentMap<String, String> cache = new ConcurrentHashMap<>();
-    private final BiFunction<String, String, String> loader;
+    // [user/email:]name -> gerritAccountId
+    private final ConcurrentMap<String, Integer> cache = new ConcurrentHashMap<>();
+    private final Function<String, Integer> loader;
 
     @Inject
-    public ReviewAssigner(
-            final GitHub github,
-            final GerritApi gerrit,
-            final GitRepositoryManager git
-    ) {
+    public ReviewAssigner(final GitHub github, final GerritApi gerrit, final GitRepositoryManager git) {
         this.github = github;
         this.gerrit = gerrit;
         this.git = git;
 
-        this.loader = (k, v) -> {
-            if (v != null) {
-                return v;
-            }
-
+        this.loader = (k) -> {
             try {
                 final List<AccountInfo> accounts = this.gerrit.accounts().query(k).get();
 
                 if (accounts.size() > 0) {
-                    return accounts.get(0)._accountId.toString();
+                    return accounts.get(0)._accountId;
                 }
             } catch (final RestApiException e) {
                 log.error("failed to query account", e);
@@ -89,53 +81,48 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
     private Config loadCodeOwners(final Repository repo, final ChangeInfo change) {
         final String ref = "refs/heads/" + change.branch;
 
-        final Optional<byte[]> data = Optional.<byte[]>empty()
-                .or(() -> JgitWrapper.getBlobAsBytes(repo, ref, "CODEOWNERS"))
-                .or(() -> JgitWrapper.getBlobAsBytes(repo, ref, ".github/CODEOWNERS"))
-                .or(() -> JgitWrapper.getBlobAsBytes(repo, ref, "docs/CODEOWNERS"));
+        final Optional<byte[]> data = Optional.<byte[]>empty().or(() -> JgitWrapper.getBlobAsBytes(repo, ref, "CODEOWNERS")).or(() -> JgitWrapper.getBlobAsBytes(repo, ref, ".github/CODEOWNERS")).or(() -> JgitWrapper.getBlobAsBytes(repo, ref, "docs/CODEOWNERS"));
 
         //noinspection OptionalIsPresent
         if (!data.isPresent()) {
             return null;
         }
 
-        return Config.parse(
-                new BufferedReader(new InputStreamReader(new ByteArrayInputStream(data.get()))).lines()
-        );
+        return Config.parse(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(data.get()))).lines());
     }
 
-    public HashRing fromCodeOwners(final Config config, final RevisionInfo revision) throws NoSuchAlgorithmException, IOException {
-        HashRing possibleReviewers = new HashRing();
+    public Set<Integer> fromCodeOwners(Config config, Set<String> changedFiles) throws IOException {
+        Set<Integer> accounts = new HashSet<>();
 
         final Set<String> owners = new HashSet<>();
-        for (final String path : revision.files.keySet()) {
+        for (final String path : changedFiles) {
             owners.addAll(config.ownersFor(path));
         }
 
         for (String owner : owners) {
             final int splitIndex = owner.indexOf('/');
 
+            //format of: @username
             if (!owner.startsWith("@")) {
-                final String username = cache.compute("email:" + owner, loader);
-                if (username != null) {
-                    possibleReviewers = possibleReviewers.withNode(username);
+                Integer accountId = cache.computeIfAbsent("email:" + owner, loader);
+                if (accountId != null) {
+                    accounts.add(accountId);
                 }
-
                 continue;
+
+                //format of: email@domain.com
             } else if (splitIndex == -1) {
                 // User
-                final String username = cache.compute("username:" + owner.substring(1), loader);
-                if (username != null) {
-                    possibleReviewers = possibleReviewers.withNode(username);
+                Integer accountId = cache.computeIfAbsent("username:" + owner.substring(1), loader);
+                if (accountId != null) {
+                    accounts.add(accountId);
                 }
-
                 // TODO: translate users we couldn't match
                 continue;
             }
 
             // `owner` starts with `@` and contains a '/', therefore it's a org-team pair
             // Format: @{org}/{team}
-
             final String orgName = owner.substring(1, splitIndex);
             final String teamName = owner.substring(splitIndex + 1);
 
@@ -143,85 +130,92 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
             members.sort(Comparator.comparing(GHUser::getLogin));
 
             for (final GHUser member : members) {
-                final String username = cache.compute("username:" + member.getLogin(), loader);
-                if (username != null) {
-                    possibleReviewers = possibleReviewers.withNode(username);
+                Integer accountId = cache.computeIfAbsent("username:" + member.getLogin(), loader);
+                if (accountId != null) {
+                    accounts.add(accountId);
                 }
 
                 // TODO: translate users we couldn't match
             }
         }
 
-        return possibleReviewers;
+        return accounts;
     }
 
-    private HashRing fromGit(HashRing possibleReviewers, final Repository repo, final RevisionInfo revision, int reviewerCount) throws GitAPIException, NoSuchAlgorithmException {
+    private Set<Integer> fromGit(Integer ownerId, Set<Integer> accounts, Repository repo, Set<String> changedFiles, int requiredCount) throws GitAPIException {
         final Git git = Git.wrap(repo);
         final LogCommand logCommand = git.log();
 
-        for (final String path : revision.files.keySet()) {
+        for (final String path : changedFiles) {
             logCommand.addPath(path);
         }
 
         final Iterator<RevCommit> log = logCommand.call().iterator();
 
-        while (possibleReviewers.size() < reviewerCount && log.hasNext()) {
+        while (requiredCount > accounts.size() && log.hasNext()) {
             final RevCommit commit = log.next();
             final PersonIdent author = commit.getAuthorIdent();
 
-            final String username = cache.compute(author.getEmailAddress(), loader);
-            if (username != null) {
-                possibleReviewers = possibleReviewers.withNode(username);
+            Integer accountId = cache.computeIfAbsent(author.getEmailAddress(), loader);
+            if (accountId != null && !accountId.equals(ownerId)) {
+                accounts.add(accountId);
             }
         }
 
-        return possibleReviewers;
+        return accounts;
     }
 
     private void assign(final ChangeInfo change, final RevisionInfo revision) throws IOException, GitAPIException, NoSuchAlgorithmException, RestApiException {
-        // use hash-ring to track possible reviewers
-        HashRing possibleReviewers = new HashRing();
-        int missingReviewers = 0;
         try (final Repository repo = git.openRepository(Project.nameKey(change.project))) {
+            Config config;
+            // use hash-ring to track possible reviewers
+            Set<Integer> reviewers;
+            int missingReviewers = 0;
+
             // attempt to load the code owners file
 
-            final Config config = loadCodeOwners(repo, change);
-            if (config != null) {
-                possibleReviewers = fromCodeOwners(config, revision);
+            config = loadCodeOwners(repo, change);
+
+            if (config == null) {
+                //no CODEOWNERS file, nothing to do.
+                return;
             }
+
+            reviewers = fromCodeOwners(config, revision.files.keySet());
+            // original owner is not a reviwer
+            reviewers.remove(change.owner._accountId);
 
             missingReviewers = config.reviewerCount - change.reviewers.size();
 
-            if (missingReviewers <= 0) {
-                // we have enough reviewers.
-                return;
-            }
             // if insufficient after populating from the owners file, attempt to augment with git history
-            if (possibleReviewers.size() < missingReviewers) {
-                possibleReviewers = fromGit(possibleReviewers, repo, revision, missingReviewers);
+            if (reviewers.size() < config.reviewerCount) {
+                reviewers = fromGit(change.owner._accountId, reviewers, repo, revision.files.keySet(), missingReviewers);
+            }
+
+            // assign reviewers from the stable hash-ring
+            final int numberToAssign = Math.min(reviewers.size(), missingReviewers);
+            log.info(change.id);
+            log.info(reviewers);
+            HashRing reviewersRing = HashRing.fromElements(HashRing.MD5, reviewers.stream().map(Object::toString).collect(Collectors.toList()));
+            Set<String> chosenReviewers = reviewersRing.getNodes(change.id, numberToAssign);
+            log.info(reviewersRing.size());
+            log.info(String.format("assigning %d (%s) reviewers to change %s choosing from %s", numberToAssign, chosenReviewers, change.id, reviewers));
+
+            // update the change
+            final ReviewInput request = new ReviewInput();
+
+            request.reviewers = chosenReviewers.stream().map((reviewer) -> {
+                final ReviewerInput r = new ReviewerInput();
+                r.reviewer = reviewer;
+                r.state = ReviewerState.REVIEWER;
+                return r;
+            }).collect(Collectors.toList());
+
+            ReviewResult result = gerrit.changes().id(change.id).current().review(request);
+            if (result.error != null && result.error != "") {
+                log.error(String.format("Error on setting reviewers for %s: %s", change.id, result.error));
             }
         }
-
-        // assign reviewers from the stable hash-ring
-
-        final int numberToAssign = Math.min(possibleReviewers.size(), missingReviewers);
-        log.info("assigning " + numberToAssign + " reviewers to " + change.id);
-
-        final Set<String> reviewers = possibleReviewers.getNodes(change.id, numberToAssign);
-
-        // update the change
-
-        final ReviewInput request = new ReviewInput();
-        request.reviewers = reviewers.stream()
-                .map((reviewer) -> {
-                    final ReviewerInput r = new ReviewerInput();
-                    r.reviewer = reviewer;
-                    r.state = ReviewerState.REVIEWER;
-                    return r;
-                })
-                .collect(Collectors.toList());
-
-        gerrit.changes().id(change.id).current().review(request);
     }
 
     @Override
@@ -244,6 +238,31 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener {
             }
         } catch (final IOException | GitAPIException | NoSuchAlgorithmException | RestApiException e) {
             log.error("failed to update reviewers on " + change.id, e);
+        }
+    }
+
+
+    @Override
+    public void onCommentAdded(CommentAddedListener.Event event) {
+        if (event.getComment() != null && event.getComment().contains("autoassign")) {
+            try {
+                // if a review is toggled from work in progress / private => active, add auto-assigned reviewers.
+                log.info("assigning reviewers to " + event.getChange().id);
+                assign(event.getChange(), event.getRevision());
+            } catch (final IOException | GitAPIException | NoSuchAlgorithmException | RestApiException e) {
+                log.error("failed to update reviewers on " + event.getChange().id, e);
+            }
+        }
+    }
+
+    @Override
+    public void onRevisionCreated(RevisionCreatedListener.Event event) {
+        try {
+            // if a review is toggled from work in progress / private => active, add auto-assigned reviewers.
+            log.info("assigning reviewers to " + event.getChange().id);
+            assign(event.getChange(), event.getRevision());
+        } catch (final IOException | GitAPIException | NoSuchAlgorithmException | RestApiException e) {
+            log.error("failed to update reviewers on " + event.getChange().id, e);
         }
     }
 }

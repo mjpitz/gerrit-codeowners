@@ -1,5 +1,7 @@
 package com.mjpitz.gerrit.plugins.codeowners;
 
+import com.google.gerrit.extensions.events.CommentAddedListener;
+import com.google.gerrit.extensions.events.RevisionCreatedListener;
 import com.google.gerrit.extensions.events.WorkInProgressStateChangedListener;
 import com.google.gerrit.extensions.registration.DynamicSet;
 import com.google.inject.AbstractModule;
@@ -40,5 +42,7 @@ public class Module extends AbstractModule {
 
         // Gerrit bindings
         DynamicSet.bind(binder, WorkInProgressStateChangedListener.class).to(ReviewAssigner.class);
+        DynamicSet.bind(binder, CommentAddedListener.class).to(ReviewAssigner.class);
+        DynamicSet.bind(binder, RevisionCreatedListener.class).to(ReviewAssigner.class);
     }
 }
