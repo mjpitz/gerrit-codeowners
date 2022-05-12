@@ -1,9 +1,12 @@
 package com.mjpitz.codeowners;
 
 import com.google.common.collect.Sets;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -33,5 +36,17 @@ public class ConfigTest {
         assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "docs@example.com"), config.ownersFor("/internal/lib/lib.go"));
         assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@js-owner"), config.ownersFor("/internal/lib/index.js"));
         assertEquals(Sets.newHashSet("@global-owner1", "@global-owner2", "@global-owner1", "@global-owner2"), config.ownersFor("Jenkinsfile"));
+    }
+
+    @Test
+    public void multiUser() throws Exception {
+        try (Reader reader = new StringReader("* @kossuth @lajos")) {
+            Config config = Config.open(reader);
+
+            Assert.assertEquals(1, config.rules.size());
+            Config.Rule rule = config.rules.get(0);
+            Assert.assertEquals(2, rule.owners.size());
+        }
+
     }
 }
