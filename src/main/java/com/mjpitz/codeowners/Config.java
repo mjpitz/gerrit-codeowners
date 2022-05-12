@@ -6,18 +6,26 @@ import org.eclipse.jgit.ignore.FastIgnoreRule;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Config {
 
     private static final Splitter SPLITTER = Splitter.on(' ');
+
+    public static final Pattern REVIEWER_COUNT_PATTERN = Pattern.compile("#\\s*gerrit-codeowners.reviewer-count:\\s*(\\d+)\\s*");
+
+
     public final List<Rule> rules;
     public final int reviewerCount;
 
     public Config(final List<Rule> rules, int assigneNo) {
         this.rules = rules;
         this.reviewerCount = assigneNo;
+
+
     }
 
     public Set<String> ownersFor(final String path) {
@@ -54,8 +62,9 @@ public class Config {
                         // comment, and comment unescaped
 
                         String comment = line.substring(commentStart);
-                        if (comment.startsWith("#gerrit-codeowners.reviewer-count:")) {
-                            assigneeNo.set(Integer.parseInt(comment.split(" ")[1]));
+                        Matcher matcher = REVIEWER_COUNT_PATTERN.matcher(comment);
+                        if (matcher.find()) {
+                            assigneeNo.set(Integer.parseInt(matcher.group(1)));
                         }
                         line = line.substring(0, commentStart);
                     }

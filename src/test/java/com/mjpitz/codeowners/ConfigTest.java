@@ -10,6 +10,7 @@ import java.io.StringReader;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.regex.Matcher;
 
 import static org.junit.Assert.assertEquals;
 
@@ -47,6 +48,21 @@ public class ConfigTest {
             Config.Rule rule = config.rules.get(0);
             Assert.assertEquals(2, rule.owners.size());
         }
+    }
+
+    @Test
+    public void reviewerCountPattern() throws Exception {
+        Matcher matcher = Config.REVIEWER_COUNT_PATTERN.matcher("# gerrit-codeowners.reviewer-count: 3");
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals("3", matcher.group(1));
+
+        matcher = Config.REVIEWER_COUNT_PATTERN.matcher("#gerrit-codeowners.reviewer-count:55");
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals("55", matcher.group(1));
+
+        matcher = Config.REVIEWER_COUNT_PATTERN.matcher("#gerrit-codeownersxxx: 5");
+        Assert.assertFalse(matcher.find());
+
 
     }
 }
