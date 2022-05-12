@@ -273,6 +273,9 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
     @Override
     public void onRevisionCreated(RevisionCreatedListener.Event event) {
         try {
+            if (event.getChange().isPrivate || event.getChange().workInProgress) {
+                return;
+            }
             // if a review is toggled from work in progress / private => active, add auto-assigned reviewers.
             log.info("assigning reviewers to " + event.getChange().id);
             assign(event.getChange(), event.getRevision());
