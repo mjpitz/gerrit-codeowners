@@ -1,6 +1,5 @@
 package com.mjpitz.gerrit.plugins.codeowners;
 
-import com.google.common.collect.Lists;
 import com.google.gerrit.entities.Project;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ReviewInput;
@@ -11,7 +10,6 @@ import com.google.gerrit.extensions.common.AccountInfo;
 import com.google.gerrit.extensions.common.ChangeInfo;
 import com.google.gerrit.extensions.common.RevisionInfo;
 import com.google.gerrit.extensions.events.CommentAddedListener;
-import com.google.gerrit.extensions.events.GitReferenceUpdatedListener;
 import com.google.gerrit.extensions.events.RevisionCreatedListener;
 import com.google.gerrit.extensions.events.WorkInProgressStateChangedListener;
 import com.google.gerrit.extensions.restapi.RestApiException;
@@ -26,6 +24,8 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.kohsuke.github.GHOrganization;
+import org.kohsuke.github.GHTeam;
 import org.kohsuke.github.GHUser;
 import org.kohsuke.github.GitHub;
 
@@ -81,7 +81,9 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
     private Config loadCodeOwners(final Repository repo, final ChangeInfo change) {
         final String ref = "refs/heads/" + change.branch;
 
-        final Optional<byte[]> data = Optional.<byte[]>empty().or(() -> JgitWrapper.getBlobAsBytes(repo, ref, "CODEOWNERS")).or(() -> JgitWrapper.getBlobAsBytes(repo, ref, ".github/CODEOWNERS")).or(() -> JgitWrapper.getBlobAsBytes(repo, ref, "docs/CODEOWNERS"));
+        final Optional<byte[]> data = Optional.<byte[]>empty().or(() -> JgitWrapper.getBlobAsBytes(repo, ref, "CODEOWNERS"))
+                .or(() -> JgitWrapper.getBlobAsBytes(repo, ref, ".github/CODEOWNERS"))
+                .or(() -> JgitWrapper.getBlobAsBytes(repo, ref, "docs/CODEOWNERS"));
 
         //noinspection OptionalIsPresent
         if (!data.isPresent()) {
@@ -126,7 +128,20 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             final String orgName = owner.substring(1, splitIndex);
             final String teamName = owner.substring(splitIndex + 1);
 
-            final List<GHUser> members = Lists.newArrayList(github.getOrganization(orgName).getTeamByName(teamName).getMembers());
+            final List<GHUser> members = new ArrayList<>();
+
+            GHOrganization organization = github.getOrganization(orgName);
+            if (organization != null) {
+                GHTeam team = organization.getTeamBySlug(teamName);
+                if (team != null) {
+                    members.addAll(team.getMembers());
+                } else {
+                    log.warn(String.format("Github team couldn't be found: %s/%s", orgName, teamName));
+                }
+            } else {
+                log.warn(String.format("Github organization couldn't be found: %s", orgName));
+            }
+
             members.sort(Comparator.comparing(GHUser::getLogin));
 
             for (final GHUser member : members) {
