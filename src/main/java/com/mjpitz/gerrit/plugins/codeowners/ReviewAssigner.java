@@ -273,6 +273,10 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
     @Override
     public void onRevisionCreated(RevisionCreatedListener.Event event) {
         try {
+            // this is empty during the rebase.
+            if (event.getChange() == null) {
+                return;
+            }
             if (event.getChange().isPrivate || event.getChange().workInProgress) {
                 return;
             }
