@@ -281,9 +281,13 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             if (event.getChange() == null) {
                 return;
             }
-            if (event.getChange().isPrivate || event.getChange().workInProgress) {
+            if (event.getChange() != null && event.getChange().isPrivate != null && event.getChange().isPrivate) {
                 return;
             }
+            if (event.getChange() != null && event.getChange().workInProgress != null && event.getChange().workInProgress) {
+                return;
+            }
+
             // if a review is toggled from work in progress / private => active, add auto-assigned reviewers.
             log.info("assigning reviewers to " + event.getChange().id);
             assign(event.getChange(), event.getRevision());
@@ -291,4 +295,5 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             log.error("failed to update reviewers on " + event.getChange().id, e);
         }
     }
+
 }
