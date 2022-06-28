@@ -200,7 +200,11 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             // original owner is not a reviwer
             reviewers.remove(change.owner._accountId);
 
-            missingReviewers = config.reviewerCount - change.reviewers.get(ReviewerState.REVIEWER).size();
+            int existingReviewers = 0;
+            if (change.reviewers != null && change.reviewers.get(ReviewerState.REVIEWER) != null){
+                existingReviewers = change.reviewers.get(ReviewerState.REVIEWER).size();
+            }
+            missingReviewers = config.reviewerCount - existingReviewers;
 
             // if insufficient after populating from the owners file, attempt to augment with git history
             if (reviewers.size() < config.reviewerCount) {
