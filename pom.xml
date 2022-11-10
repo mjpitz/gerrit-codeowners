@@ -27,7 +27,7 @@ limitations under the License.
     <properties>
         <revision>1.0-SNAPSHOT</revision>
         <Gerrit-ApiType>plugin</Gerrit-ApiType>
-        <Gerrit-ApiVersion>3.6.1</Gerrit-ApiVersion>
+        <Gerrit-ApiVersion>3.6.2</Gerrit-ApiVersion>
     </properties>
 
     <build>
@@ -86,7 +86,7 @@ limitations under the License.
         <dependency>
             <groupId>org.kohsuke</groupId>
             <artifactId>github-api</artifactId>
-            <version>1.303</version>
+            <version>1.313</version>
         </dependency>
 
         <dependency>
