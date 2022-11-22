@@ -11,25 +11,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
           java-version: '11'
-
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.3
-        with:
-          maven-version: 3.8.2
+          cache: 'maven'
 
       - name: Build
         run: |
           export VERSION="${GITHUB_REF##*/v}"
-          mvn -Drevision=${VERSION} clean package
+          mvn --batch-mode --update-snapshots -Drevision=${VERSION} clean package
           sha256sum target/codeowners-${VERSION}.jar > target/codeowners-checksums.txt
 
       - name: Upload
