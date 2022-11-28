@@ -1,4 +1,4 @@
-package com.mjpitz.gerrit.plugins.codeowners;
+package io.storj.gerrit.plugins.codeowners;
 
 import com.google.gerrit.entities.Project;
 import com.google.gerrit.extensions.api.GerritApi;
@@ -16,7 +16,7 @@ import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.mjpitz.codeowners.Config;
+import io.storj.codeowners.Config;
 import org.apache.log4j.Logger;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.LogCommand;

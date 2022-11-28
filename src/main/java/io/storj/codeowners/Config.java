@@ -1,4 +1,4 @@
-package com.mjpitz.codeowners;
+package io.storj.codeowners;
 
 import com.google.common.base.Splitter;
 import org.eclipse.jgit.ignore.FastIgnoreRule;

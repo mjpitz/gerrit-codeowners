@@ -1,4 +1,4 @@
-package com.mjpitz.gerrit.plugins.codeowners;
+package io.storj.gerrit.plugins.codeowners;
 
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.accounts.Accounts;
@@ -6,7 +6,7 @@ import com.google.gerrit.extensions.common.AccountInfo;
 import com.google.gerrit.extensions.common.ChangeInfo;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.server.git.GitRepositoryManager;
-import com.mjpitz.codeowners.Config;
+import io.storj.codeowners.Config;
 import org.junit.Assert;
 import org.junit.Test;
 import org.kohsuke.github.GitHub;

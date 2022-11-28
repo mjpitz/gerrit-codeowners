@@ -14,7 +14,6 @@
 - [Oh, it doesn't work for me...](#oh--it-doesn-t-work-for-me)
 - [I have different usernames for github and gerrit, am I using the right usernames?](#i-have-different-usernames-for-github-and-gerrit--am-i-using-the-right-usernames-)
 - [Does it need to be in the main branch?](#does-it-need-to-be-in-the-main-branch-)
-- [License](#license)
 
 ## Features
 
@@ -34,7 +33,7 @@ path   @githubuser
 ...
 ```
 
-Path can be *, *.go, dir/
+Path can be `*`, `*.go`, `dir/`
 
 For more details of the syntax, check:
 https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners?algolia-query=Code%20owners
@@ -99,13 +98,3 @@ Where `pass show -o storj/gerrit.http` should be replaced with a command which p
 ## Does it need to be in the main branch?
 
 The plugin uses the `CODEOWNERS` file in the target branch of the change.
-
-## License
-
-See [LICENSE](LICENSE) for more details.
-
-```text
-The MIT License (MIT)
-
-Copyright (c) 2022 Mya Pitzeruse
-```

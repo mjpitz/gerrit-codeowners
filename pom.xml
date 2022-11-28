@@ -19,7 +19,7 @@ limitations under the License.
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.mjpitz.gerrit.plugins</groupId>
+    <groupId>io.storj.gerrit.plugins</groupId>
     <artifactId>codeowners</artifactId>
     <version>${revision}</version>
     <packaging>jar</packaging>
@@ -43,7 +43,7 @@ limitations under the License.
                                 implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                             <manifestEntries>
                                 <Gerrit-PluginName>codeowners</Gerrit-PluginName>
-                                <Gerrit-Module>com.mjpitz.gerrit.plugins.codeowners.Module</Gerrit-Module>
+                                <Gerrit-Module>io.storj.gerrit.plugins.codeowners.Module</Gerrit-Module>
 
                                 <!--
                                 <Implementation-Vendor>Gerrit Code Review</Implementation-Vendor>

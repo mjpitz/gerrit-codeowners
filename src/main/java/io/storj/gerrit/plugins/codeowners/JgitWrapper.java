@@ -32,7 +32,7 @@
 // implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
-package com.mjpitz.gerrit.plugins.codeowners;
+package io.storj.gerrit.plugins.codeowners;
 
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
