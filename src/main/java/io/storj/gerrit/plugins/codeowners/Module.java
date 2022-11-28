@@ -1,4 +1,4 @@
-package com.mjpitz.gerrit.plugins.codeowners;
+package io.storj.gerrit.plugins.codeowners;
 
 import com.google.gerrit.extensions.events.CommentAddedListener;
 import com.google.gerrit.extensions.events.RevisionCreatedListener;

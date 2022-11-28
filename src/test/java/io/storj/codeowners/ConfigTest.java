@@ -1,4 +1,4 @@
-package com.mjpitz.codeowners;
+package io.storj.codeowners;
 
 import com.google.common.collect.Sets;
 import org.junit.Assert;

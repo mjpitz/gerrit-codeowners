@@ -1,4 +1,4 @@
-package com.mjpitz.gerrit.plugins.codeowners;
+package io.storj.gerrit.plugins.codeowners;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;

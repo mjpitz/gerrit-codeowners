@@ -1,5 +1,5 @@
 {
-  "name": "@mjpitz/gerrit-codeowners",
+  "name": "@storj/gerrit-codeowners",
   "private": true,
   "version": "22.4.1"
 }
