@@ -3,7 +3,6 @@ package io.storj.gerrit.plugins.codeowners;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.accounts.Accounts;
 import com.google.gerrit.extensions.common.AccountInfo;
-import com.google.gerrit.extensions.common.ChangeInfo;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import io.storj.codeowners.Config;
@@ -37,9 +36,6 @@ public class ReviewAssignerTest {
         addMockUser(accounts, "admin", "admin@storj.io", 3);
 
         ReviewAssigner assigner = new ReviewAssigner(gitHub, gerritApi, git);
-
-        ChangeInfo change = new ChangeInfo();
-        change.project = "storj/storjscan";
 
         Config c = Config.open(new InputStreamReader(getClass().getClassLoader().getResourceAsStream("TEST_CODEOWNERS2")));
         Set<String> files = new HashSet<>();

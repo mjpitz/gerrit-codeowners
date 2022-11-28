@@ -133,13 +133,15 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             GHOrganization organization = github.getOrganization(orgName);
             if (organization != null) {
                 GHTeam team = organization.getTeamBySlug(teamName);
-                if (team != null) {
-                    members.addAll(team.getMembers());
+                if(team == null) {
+                    log.warn(String.format("Github team couldn't be found: '%s/%s'", orgName, teamName));
+                } else if(team.getPrivacy() == GHTeam.Privacy.SECRET) {
+                    log.warn(String.format("Github team is secret: '%s/%s'", orgName, teamName));
                 } else {
-                    log.warn(String.format("Github team couldn't be found: %s/%s", orgName, teamName));
+                    members.addAll(team.getMembers());
                 }
             } else {
-                log.warn(String.format("Github organization couldn't be found: %s", orgName));
+                log.warn(String.format("Github organization couldn't be found: '%s'", orgName));
             }
 
             members.sort(Comparator.comparing(GHUser::getLogin));

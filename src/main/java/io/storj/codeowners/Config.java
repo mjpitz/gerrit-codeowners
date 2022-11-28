@@ -24,8 +24,6 @@ public class Config {
     public Config(final List<Rule> rules, int assigneNo) {
         this.rules = rules;
         this.reviewerCount = assigneNo;
-
-
     }
 
     public Set<String> ownersFor(final String path) {

@@ -7,8 +7,6 @@ services:
       context: .
     environment:
       CANONICAL_WEB_URL: http://localhost:6060
-      GITHUB_LOGIN: ${GITHUB_LOGIN:-}
-      GITHUB_OAUTH: ${GITHUB_OAUTH:-}
     volumes:
       - ./docker/gerrit/db:/var/gerrit/db
       - ./docker/gerrit/etc:/var/gerrit/etc

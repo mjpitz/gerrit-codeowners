@@ -62,7 +62,17 @@ public class ConfigTest {
 
         matcher = Config.REVIEWER_COUNT_PATTERN.matcher("#gerrit-codeownersxxx: 5");
         Assert.assertFalse(matcher.find());
+    }
 
+    @Test
+    public void simple() throws URISyntaxException, IOException {
+        final Config config = Config.parse(Files.lines(
+                Paths.get(ClassLoader.getSystemResource("TEST_CODEOWNERS3").toURI())
+        ));
 
+        assertEquals(1, config.rules.size());
+        assertEquals(2, config.reviewerCount);
+
+        assertEquals(Sets.newHashSet("@storj/example"), config.ownersFor("/README.md"));
     }
 }
