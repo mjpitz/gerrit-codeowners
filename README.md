@@ -56,7 +56,18 @@ Yes, you can. Assignment is predictable random (using hashes of the change id an
 
 ## Can I use teams?
 
-Yes, it's based on GitHub teams (not Gerrit teams), but infra configuration is still work in progress (== don't use it, yet, will be available soon)
+Yes, it's based on GitHub teams (not Gerrit teams).
+To make it work gerrit needs to be configured via `$GERRIT_SITE/etc/config`:
+
+```
+[plugin "codeowners"]
+githubAppID = <github application id>
+githubInstanceID = <github instance id>
+githubKeyPath = <github key path>
+
+# For testing a Personal Access Token can be used.
+githubToken = <github jwt token>
+```
 
 ## How to turn it off?
 
@@ -76,13 +87,9 @@ Just adopt code path!
 
 Just put your names to any `CODEOWNERS` for any path what you are comfortable with and give review when issues are assigned to you. :pray:
 
-## Would you like to improve it?
-
-Open an issue/PR: https://github.com/storj/gerrit-codeowners/
-
 ## Oh, it doesn't work for me...
 
-Support slack channel is `#team-dev-enablement`
+Support slack channel is `#team-delivery`
 
 ## I have different usernames for github and gerrit, am I using the right usernames?
 
