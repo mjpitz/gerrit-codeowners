@@ -105,21 +105,20 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             final int splitIndex = owner.indexOf('/');
 
             //format of: @username
-            if (!owner.startsWith("@")) {
-                Integer accountId = cache.computeIfAbsent("email:" + owner, loader);
+            if(owner.startsWith("@")) {
+                Integer accountId = findByUsername(owner.substring(1));
                 if (accountId != null) {
                     accounts.add(accountId);
                 }
                 continue;
+            }
 
-                //format of: email@domain.com
-            } else if (splitIndex == -1) {
-                // User
-                Integer accountId = cache.computeIfAbsent("username:" + owner.substring(1), loader);
+            //format of: email@domain.com
+            if(splitIndex == -1) {
+                Integer accountId = findByEmail(owner);
                 if (accountId != null) {
                     accounts.add(accountId);
                 }
-                // TODO: translate users we couldn't match
                 continue;
             }
 
@@ -147,16 +146,64 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             members.sort(Comparator.comparing(GHUser::getLogin));
 
             for (final GHUser member : members) {
-                Integer accountId = cache.computeIfAbsent("username:" + member.getLogin(), loader);
+                Integer accountId = findGithubMember(member);
                 if (accountId != null) {
                     accounts.add(accountId);
+                    continue;
                 }
-
-                // TODO: translate users we couldn't match
             }
         }
 
         return accounts;
+    }
+
+    // findGithubMember first tries to find a match for GitHub username and then email in gerrit database.
+    private Integer findGithubMember(GHUser member) {
+        // try to match the username directly
+        Integer accountId = cache.computeIfAbsent("username:" + member.getLogin(), loader);
+        if (accountId != null) {
+            return accountId;
+        }
+
+        // try to match the email
+        try {
+            accountId = this.findByEmail(member.getEmail());
+            if (accountId != null) {
+                return accountId;
+            }
+        } catch (Exception e) {
+            log.warn(e);
+            return null;
+        }
+
+        // TODO: translate users we couldn't match
+
+        return null;
+    }
+
+    private Integer findByUsername(String username) {
+        // try to match the username
+        Integer accountId = cache.computeIfAbsent("username:" + username, loader);
+        if (accountId != null) {
+            return accountId;
+        }
+
+        try {
+            // fetch the user to get the GitHub email
+            GHUser user = github.getUser(username);
+            // then try to match by user email
+            return this.findByEmail(user.getEmail());
+        } catch(Exception e) {
+            log.warn(e);
+            return null;
+        }
+
+        // TODO: translate users we couldn't match
+    }
+
+
+    private Integer findByEmail(String email) {
+        return cache.computeIfAbsent("email:" + email, loader);
     }
 
     private Set<Integer> fromGit(Integer ownerId, Set<Integer> accounts, Repository repo, Set<String> changedFiles, int requiredCount) throws GitAPIException {
