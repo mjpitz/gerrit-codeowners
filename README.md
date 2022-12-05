@@ -91,16 +91,10 @@ Just put your names to any `CODEOWNERS` for any path what you are comfortable wi
 
 Support slack channel is `#team-delivery`
 
-## I have different usernames for github and gerrit, am I using the right usernames?
+## How does it figure out the users?
 
-1. Use github usernames
-2. you can test what plugins does:
-
-eg. in case of using `@USERNAME` in `CODEOWNERS`:
-```
-curl -u elek:$(pass show -o storj/gerrit.http) 'https://review.dev.storj.io/a/accounts/?q=username:USERNAME' 
-```
-Where `pass show -o storj/gerrit.http` should be replaced with a command which prints out the gerrit HTTP password. (Assuming you wouldn't like to include it in your shell history).
+The plugin tries to match-up the users by username and then by email.
+Hence, the gerrit configuration should contain GitHub email.
 
 ## Does it need to be in the main branch?
 
