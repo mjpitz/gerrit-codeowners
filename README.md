@@ -67,6 +67,9 @@ githubKeyPath = <github key path>
 
 # For testing a Personal Access Token can be used.
 githubToken = <github jwt token>
+
+# optional reviewer group allows to restrict who gets automatically assigned.
+reviewerGroup = "name:Org"
 ```
 
 ## How to turn it off?

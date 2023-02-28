@@ -8,11 +8,14 @@ import com.google.gerrit.extensions.api.changes.ReviewerInput;
 import com.google.gerrit.extensions.client.ReviewerState;
 import com.google.gerrit.extensions.common.AccountInfo;
 import com.google.gerrit.extensions.common.ChangeInfo;
+import com.google.gerrit.extensions.common.GroupInfo;
 import com.google.gerrit.extensions.common.RevisionInfo;
 import com.google.gerrit.extensions.events.CommentAddedListener;
 import com.google.gerrit.extensions.events.RevisionCreatedListener;
 import com.google.gerrit.extensions.events.WorkInProgressStateChangedListener;
 import com.google.gerrit.extensions.restapi.RestApiException;
+import com.google.gerrit.server.config.PluginConfig;
+import com.google.gerrit.server.config.PluginConfigFactory;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -52,20 +55,45 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
     // [user/email:]name -> gerritAccountId
     private final ConcurrentMap<String, Integer> cache = new ConcurrentHashMap<>();
     private final Function<String, Integer> loadAccountID;
+    private final String reviewerGroup;
 
     @Inject
-    public ReviewAssigner(final GitHub github, final GerritApi gerrit, final GitRepositoryManager git) {
+    public ReviewAssigner(PluginConfigFactory cfg, final GitHub github, final GerritApi gerrit, final GitRepositoryManager git) {
         this.github = github;
         this.gerrit = gerrit;
         this.git = git;
 
+        PluginConfig config = cfg.getFromGerritConfig("codeowners");
+        reviewerGroup = config.getString("reviewerGroup", "");
+
         this.loadAccountID = (String query) -> {
             try {
                 final List<AccountInfo> accounts = this.gerrit.accounts().query(query).get();
-
-                if (accounts.size() > 0) {
-                    return accounts.get(0)._accountId;
+                if (accounts.size() == 0) {
+                    // did not find a suitable match
+                    return null;
                 }
+
+                AccountInfo account = accounts.get(0);
+                if(reviewerGroup == "") {
+                    // no filtering by the reviewer group.
+                    return account._accountId;
+                }
+
+                final List<GroupInfo> groups = this.gerrit.groups().query(reviewerGroup).get();
+                if(groups.size() == 0) {
+                    log.error("failed to find reviewerGroup");
+                    return null;
+                }
+
+                for(GroupInfo group: groups) {
+                    if(group.members.contains(account)) {
+                        return account._accountId;
+                    }
+                }
+
+                // user does not belong to any of the matching groups, hence we should not assign them
+                return null;
             } catch (final RestApiException e) {
                 log.error("failed to query account", e);
             }
