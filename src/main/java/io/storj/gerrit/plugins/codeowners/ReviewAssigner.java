@@ -51,7 +51,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
     // use a global cache to reduce calls to the gerrit APIs
     // [user/email:]name -> gerritAccountId
     private final ConcurrentMap<String, Integer> cache = new ConcurrentHashMap<>();
-    private final Function<String, Integer> loader;
+    private final Function<String, Integer> loadAccountID;
 
     @Inject
     public ReviewAssigner(final GitHub github, final GerritApi gerrit, final GitRepositoryManager git) {
@@ -59,9 +59,9 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
         this.gerrit = gerrit;
         this.git = git;
 
-        this.loader = (k) -> {
+        this.loadAccountID = (String query) -> {
             try {
-                final List<AccountInfo> accounts = this.gerrit.accounts().query(k).get();
+                final List<AccountInfo> accounts = this.gerrit.accounts().query(query).get();
 
                 if (accounts.size() > 0) {
                     return accounts.get(0)._accountId;
@@ -160,7 +160,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
     // findGithubMember first tries to find a match for GitHub username and then email in gerrit database.
     private Integer findGithubMember(GHUser member) {
         // try to match the username directly
-        Integer accountId = cache.computeIfAbsent("username:" + member.getLogin(), loader);
+        Integer accountId = cache.computeIfAbsent("username:" + member.getLogin(), loadAccountID);
         if (accountId != null) {
             return accountId;
         }
@@ -183,7 +183,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
 
     private Integer findByUsername(String username) {
         // try to match the username
-        Integer accountId = cache.computeIfAbsent("username:" + username, loader);
+        Integer accountId = cache.computeIfAbsent("username:" + username, loadAccountID);
         if (accountId != null) {
             return accountId;
         }
@@ -201,9 +201,8 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
         // TODO: translate users we couldn't match
     }
 
-
     private Integer findByEmail(String email) {
-        return cache.computeIfAbsent("email:" + email, loader);
+        return cache.computeIfAbsent("email:" + email, loadAccountID);
     }
 
     private Set<Integer> fromGit(Integer ownerId, Set<Integer> accounts, Repository repo, Set<String> changedFiles, int requiredCount) throws GitAPIException {
@@ -220,7 +219,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             final RevCommit commit = log.next();
             final PersonIdent author = commit.getAuthorIdent();
 
-            Integer accountId = cache.computeIfAbsent(author.getEmailAddress(), loader);
+            Integer accountId = findByEmail(author.getEmailAddress());
             if (accountId != null && !accountId.equals(ownerId)) {
                 accounts.add(accountId);
             }
