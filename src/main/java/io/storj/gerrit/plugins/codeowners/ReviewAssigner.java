@@ -8,11 +8,14 @@ import com.google.gerrit.extensions.api.changes.ReviewerInput;
 import com.google.gerrit.extensions.client.ReviewerState;
 import com.google.gerrit.extensions.common.AccountInfo;
 import com.google.gerrit.extensions.common.ChangeInfo;
+import com.google.gerrit.extensions.common.GroupInfo;
 import com.google.gerrit.extensions.common.RevisionInfo;
 import com.google.gerrit.extensions.events.CommentAddedListener;
 import com.google.gerrit.extensions.events.RevisionCreatedListener;
 import com.google.gerrit.extensions.events.WorkInProgressStateChangedListener;
 import com.google.gerrit.extensions.restapi.RestApiException;
+import com.google.gerrit.server.config.PluginConfig;
+import com.google.gerrit.server.config.PluginConfigFactory;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -51,21 +54,46 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
     // use a global cache to reduce calls to the gerrit APIs
     // [user/email:]name -> gerritAccountId
     private final ConcurrentMap<String, Integer> cache = new ConcurrentHashMap<>();
-    private final Function<String, Integer> loader;
+    private final Function<String, Integer> loadAccountID;
+    private final String reviewerGroup;
 
     @Inject
-    public ReviewAssigner(final GitHub github, final GerritApi gerrit, final GitRepositoryManager git) {
+    public ReviewAssigner(PluginConfigFactory cfg, final GitHub github, final GerritApi gerrit, final GitRepositoryManager git) {
         this.github = github;
         this.gerrit = gerrit;
         this.git = git;
 
-        this.loader = (k) -> {
-            try {
-                final List<AccountInfo> accounts = this.gerrit.accounts().query(k).get();
+        PluginConfig config = cfg.getFromGerritConfig("codeowners");
+        reviewerGroup = config.getString("reviewerGroup", "");
 
-                if (accounts.size() > 0) {
-                    return accounts.get(0)._accountId;
+        this.loadAccountID = (String query) -> {
+            try {
+                final List<AccountInfo> accounts = this.gerrit.accounts().query(query).get();
+                if (accounts.size() == 0) {
+                    // did not find a suitable match
+                    return null;
                 }
+
+                AccountInfo account = accounts.get(0);
+                if(reviewerGroup == "") {
+                    // no filtering by the reviewer group.
+                    return account._accountId;
+                }
+
+                final List<GroupInfo> groups = this.gerrit.groups().query(reviewerGroup).get();
+                if(groups.size() == 0) {
+                    log.error("failed to find reviewerGroup");
+                    return null;
+                }
+
+                for(GroupInfo group: groups) {
+                    if(group.members.contains(account)) {
+                        return account._accountId;
+                    }
+                }
+
+                // user does not belong to any of the matching groups, hence we should not assign them
+                return null;
             } catch (final RestApiException e) {
                 log.error("failed to query account", e);
             }
@@ -160,7 +188,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
     // findGithubMember first tries to find a match for GitHub username and then email in gerrit database.
     private Integer findGithubMember(GHUser member) {
         // try to match the username directly
-        Integer accountId = cache.computeIfAbsent("username:" + member.getLogin(), loader);
+        Integer accountId = cache.computeIfAbsent("username:" + member.getLogin(), loadAccountID);
         if (accountId != null) {
             return accountId;
         }
@@ -183,7 +211,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
 
     private Integer findByUsername(String username) {
         // try to match the username
-        Integer accountId = cache.computeIfAbsent("username:" + username, loader);
+        Integer accountId = cache.computeIfAbsent("username:" + username, loadAccountID);
         if (accountId != null) {
             return accountId;
         }
@@ -201,9 +229,8 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
         // TODO: translate users we couldn't match
     }
 
-
     private Integer findByEmail(String email) {
-        return cache.computeIfAbsent("email:" + email, loader);
+        return cache.computeIfAbsent("email:" + email, loadAccountID);
     }
 
     private Set<Integer> fromGit(Integer ownerId, Set<Integer> accounts, Repository repo, Set<String> changedFiles, int requiredCount) throws GitAPIException {
@@ -220,7 +247,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             final RevCommit commit = log.next();
             final PersonIdent author = commit.getAuthorIdent();
 
-            Integer accountId = cache.computeIfAbsent(author.getEmailAddress(), loader);
+            Integer accountId = findByEmail(author.getEmailAddress());
             if (accountId != null && !accountId.equals(ownerId)) {
                 accounts.add(accountId);
             }

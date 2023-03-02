@@ -50,7 +50,6 @@ public class Module extends AbstractModule {
         long githubInstanceID = config.getLong("githubInstanceID", 0);
         String githubKeyPath = config.getString("githubKeyPath", "");
 
-
         final GitHub github;
 
         try {

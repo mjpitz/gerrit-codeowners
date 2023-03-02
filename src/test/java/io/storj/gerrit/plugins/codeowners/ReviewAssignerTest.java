@@ -4,6 +4,8 @@ import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.accounts.Accounts;
 import com.google.gerrit.extensions.common.AccountInfo;
 import com.google.gerrit.extensions.restapi.RestApiException;
+import com.google.gerrit.server.config.PluginConfig;
+import com.google.gerrit.server.config.PluginConfigFactory;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import io.storj.codeowners.Config;
 import org.junit.Assert;
@@ -35,7 +37,10 @@ public class ReviewAssignerTest {
         addMockUser(accounts, "elek", "elek@storj.io", 2);
         addMockUser(accounts, "admin", "admin@storj.io", 3);
 
-        ReviewAssigner assigner = new ReviewAssigner(gitHub, gerritApi, git);
+        PluginConfigFactory configFactory = Mockito.mock(PluginConfigFactory.class);
+        Mockito.when(configFactory.getFromGerritConfig("codeowners")).thenReturn(
+                PluginConfig.create("codeowners", new org.eclipse.jgit.lib.Config(), null));
+        ReviewAssigner assigner = new ReviewAssigner(configFactory, gitHub, gerritApi, git);
 
         Config c = Config.open(new InputStreamReader(getClass().getClassLoader().getResourceAsStream("TEST_CODEOWNERS2")));
         Set<String> files = new HashSet<>();
