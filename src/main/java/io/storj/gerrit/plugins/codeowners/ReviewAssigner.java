@@ -5,6 +5,7 @@ import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ReviewInput;
 import com.google.gerrit.extensions.api.changes.ReviewResult;
 import com.google.gerrit.extensions.api.changes.ReviewerInput;
+import com.google.gerrit.extensions.client.ListGroupsOption;
 import com.google.gerrit.extensions.client.ReviewerState;
 import com.google.gerrit.extensions.common.AccountInfo;
 import com.google.gerrit.extensions.common.ChangeInfo;
@@ -80,15 +81,22 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
                     return account._accountId;
                 }
 
-                final List<GroupInfo> groups = this.gerrit.groups().query(reviewerGroup).get();
+                final List<GroupInfo> groups = this.gerrit.
+                        groups().
+                        query(reviewerGroup).
+                        withOptions(ListGroupsOption.MEMBERS, ListGroupsOption.INCLUDES).
+                        get();
                 if(groups.size() == 0) {
-                    log.error("failed to find reviewerGroup");
                     return null;
                 }
 
                 for(GroupInfo group: groups) {
-                    if(group.members.contains(account)) {
-                        return account._accountId;
+                    if(group.members == null) continue;
+
+                    for (AccountInfo member : group.members) {
+                        if(member._accountId.equals(account._accountId)) {
+                            return account._accountId;
+                        }
                     }
                 }
 
