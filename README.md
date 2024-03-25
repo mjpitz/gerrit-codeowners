@@ -23,11 +23,13 @@
 
 ## What does it mean?
 
-If you have CODEOWNERS file in the root of a Gerrit repository with GitHub users, issues will be autoassigned to random owners (in Gerrit!)
+If you have CODEOWNERS file in the root of a Gerrit repository with GitHub users, issues will be autoassigned to random
+owners (in Gerrit!)
 
 ## How to use it?
 
 Create a `CODEOWNERS` file in the root of your repository with the following syntax:
+
 ```
 path   @githubuser
 ...
@@ -48,7 +50,10 @@ https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-f
 
 ## Can I have less than 2 owners for one dir/repo?
 
-Yes, you can. (When `CODEOWNERS` exists, plugin may try to find other owners based on Git history..., this might be changed based on feedback...)
+Yes, you can.
+
+You can also choose to fill missing reviewers based on git history (use `#gerrit-codeowners.use-git-history: true`
+comment, to enable this feature)
 
 ## Can I have more than 2 owners?
 
@@ -88,7 +93,8 @@ Assignment is automatic:
 
 Just adopt code path!
 
-Just put your names to any `CODEOWNERS` for any path what you are comfortable with and give review when issues are assigned to you. :pray:
+Just put your names to any `CODEOWNERS` for any path what you are comfortable with and give review when issues are
+assigned to you. :pray:
 
 ## Oh, it doesn't work for me...
 
