@@ -105,7 +105,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             final int splitIndex = owner.indexOf('/');
 
             //format of: @username
-            if(owner.startsWith("@")) {
+            if (owner.startsWith("@")) {
                 Integer accountId = findByUsername(owner.substring(1));
                 if (accountId != null) {
                     accounts.add(accountId);
@@ -114,7 +114,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             }
 
             //format of: email@domain.com
-            if(splitIndex == -1) {
+            if (splitIndex == -1) {
                 Integer accountId = findByEmail(owner);
                 if (accountId != null) {
                     accounts.add(accountId);
@@ -132,9 +132,9 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             GHOrganization organization = github.getOrganization(orgName);
             if (organization != null) {
                 GHTeam team = organization.getTeamBySlug(teamName);
-                if(team == null) {
+                if (team == null) {
                     log.warn(String.format("Github team couldn't be found: '%s/%s'", orgName, teamName));
-                } else if(team.getPrivacy() == GHTeam.Privacy.SECRET) {
+                } else if (team.getPrivacy() == GHTeam.Privacy.SECRET) {
                     log.warn(String.format("Github team is secret: '%s/%s'", orgName, teamName));
                 } else {
                     members.addAll(team.getMembers());
@@ -193,7 +193,7 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             GHUser user = github.getUser(username);
             // then try to match by user email
             return this.findByEmail(user.getEmail());
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.warn(e);
             return null;
         }
@@ -250,13 +250,13 @@ public class ReviewAssigner implements WorkInProgressStateChangedListener, Comme
             reviewers.remove(change.owner._accountId);
 
             int existingReviewers = 0;
-            if (change.reviewers != null && change.reviewers.get(ReviewerState.REVIEWER) != null){
+            if (change.reviewers != null && change.reviewers.get(ReviewerState.REVIEWER) != null) {
                 existingReviewers = change.reviewers.get(ReviewerState.REVIEWER).size();
             }
             missingReviewers = config.reviewerCount - existingReviewers;
 
             // if insufficient after populating from the owners file, attempt to augment with git history
-            if (reviewers.size() < config.reviewerCount) {
+            if (reviewers.size() < config.reviewerCount && config.useGitHistory) {
                 reviewers = fromGit(change.owner._accountId, reviewers, repo, revision.files.keySet(), missingReviewers);
             }
 

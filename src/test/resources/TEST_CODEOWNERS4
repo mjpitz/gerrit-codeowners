@@ -1,0 +1,2 @@
+# gerrit-codeowners.use-git-history: true
+* @storj/example

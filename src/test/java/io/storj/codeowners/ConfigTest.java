@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.regex.Matcher;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ConfigTest {
     @Test
@@ -62,6 +63,15 @@ public class ConfigTest {
 
         matcher = Config.REVIEWER_COUNT_PATTERN.matcher("#gerrit-codeownersxxx: 5");
         Assert.assertFalse(matcher.find());
+    }
+
+    @Test
+    public void geitHistoryEnabled() throws Exception {
+        final Config config = Config.parse(Files.lines(
+                Paths.get(ClassLoader.getSystemResource("TEST_CODEOWNERS4").toURI())
+        ));
+
+        assertTrue(config.useGitHistory);
     }
 
     @Test

@@ -5,6 +5,7 @@ import org.eclipse.jgit.ignore.FastIgnoreRule;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -17,13 +18,17 @@ public class Config {
 
     public static final Pattern REVIEWER_COUNT_PATTERN = Pattern.compile("#\\s*gerrit-codeowners.reviewer-count:\\s*(\\d+)\\s*");
 
+    public static final Pattern USE_GIT_HISTORY = Pattern.compile("#\\s*gerrit-codeowners.use-git-history: true");
+
 
     public final List<Rule> rules;
     public final int reviewerCount;
+    public boolean useGitHistory;
 
-    public Config(final List<Rule> rules, int assigneNo) {
+    public Config(final List<Rule> rules, int assigneNo, boolean useGitHistory) {
         this.rules = rules;
         this.reviewerCount = assigneNo;
+        this.useGitHistory = useGitHistory;
     }
 
     public Set<String> ownersFor(final String path) {
@@ -52,6 +57,7 @@ public class Config {
     public static Config parse(final Stream<String> stream) {
         final List<Rule> rules = new ArrayList<>();
         AtomicInteger assigneeNo = new AtomicInteger(2);
+        AtomicBoolean useGitHistory = new AtomicBoolean(false);
         stream
                 .filter(Objects::nonNull)
                 .forEach((line) -> {
@@ -64,6 +70,11 @@ public class Config {
                         if (matcher.find()) {
                             assigneeNo.set(Integer.parseInt(matcher.group(1)));
                         }
+                        Matcher randomizeMatcher = USE_GIT_HISTORY.matcher(comment);
+                        if (randomizeMatcher.find()) {
+                            useGitHistory.set(true);
+                        }
+
                         line = line.substring(0, commentStart);
                     }
 
@@ -91,7 +102,7 @@ public class Config {
                     ));
                 });
 
-        return new Config(rules, assigneeNo.get());
+        return new Config(rules, assigneeNo.get(), useGitHistory.get());
     }
 
     public static class Rule {
